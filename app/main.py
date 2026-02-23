@@ -4,7 +4,8 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import date
-import models, database
+import models
+import database
 from pydantic import BaseModel
 
 app = FastAPI(title="Personal Task Manager")
@@ -22,13 +23,17 @@ class TagBase(BaseModel):
     name: str
     color: str = "#6366f1"
 
+
 class TagCreate(TagBase):
     pass
 
+
 class Tag(TagBase):
     id: int
+
     class Config:
         from_attributes = True
+
 
 class TaskCreate(BaseModel):
     title: str
@@ -36,6 +41,7 @@ class TaskCreate(BaseModel):
     due_date: Optional[date] = None
     priority: str = "medium"  # low, medium, high
     tag_ids: List[int] = []
+
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
@@ -45,6 +51,7 @@ class TaskUpdate(BaseModel):
     completed: Optional[bool] = None
     tag_ids: Optional[List[int]] = None
 
+
 class Task(BaseModel):
     id: int
     title: str
@@ -53,6 +60,7 @@ class Task(BaseModel):
     priority: str
     completed: bool
     tags: List[Tag] = []
+
     class Config:
         from_attributes = True
 
@@ -73,10 +81,13 @@ def get_db():
 def root():
     return FileResponse("frontend/index.html")
 
+
 # Tags
+
 @app.get("/api/tags", response_model=List[Tag])
 def get_tags(db: Session = Depends(get_db)):
     return db.query(models.Tag).all()
+
 
 @app.post("/api/tags", response_model=Tag, status_code=201)
 def create_tag(tag: TagCreate, db: Session = Depends(get_db)):
@@ -86,6 +97,7 @@ def create_tag(tag: TagCreate, db: Session = Depends(get_db)):
     db.refresh(db_tag)
     return db_tag
 
+
 @app.delete("/api/tags/{tag_id}", status_code=204)
 def delete_tag(tag_id: int, db: Session = Depends(get_db)):
     tag = db.query(models.Tag).filter(models.Tag.id == tag_id).first()
@@ -94,7 +106,9 @@ def delete_tag(tag_id: int, db: Session = Depends(get_db)):
     db.delete(tag)
     db.commit()
 
+
 # Tasks
+
 @app.get("/api/tasks", response_model=List[Task])
 def get_tasks(
     completed: Optional[bool] = None,
@@ -111,6 +125,7 @@ def get_tasks(
         q = q.filter(models.Task.tags.any(models.Tag.id == tag_id))
     return q.order_by(models.Task.due_date.asc().nullslast(), models.Task.id.desc()).all()
 
+
 @app.post("/api/tasks", response_model=Task, status_code=201)
 def create_task(task: TaskCreate, db: Session = Depends(get_db)):
     tags = db.query(models.Tag).filter(models.Tag.id.in_(task.tag_ids)).all()
@@ -126,6 +141,7 @@ def create_task(task: TaskCreate, db: Session = Depends(get_db)):
     db.refresh(db_task)
     return db_task
 
+
 @app.patch("/api/tasks/{task_id}", response_model=Task)
 def update_task(task_id: int, updates: TaskUpdate, db: Session = Depends(get_db)):
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
@@ -140,6 +156,7 @@ def update_task(task_id: int, updates: TaskUpdate, db: Session = Depends(get_db)
     db.refresh(task)
     return task
 
+
 @app.delete("/api/tasks/{task_id}", status_code=204)
 def delete_task(task_id: int, db: Session = Depends(get_db)):
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
@@ -147,6 +164,7 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Task not found")
     db.delete(task)
     db.commit()
+
 
 @app.get("/api/health")
 def health():
